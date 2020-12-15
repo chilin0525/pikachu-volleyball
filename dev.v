@@ -1,29 +1,10 @@
 `timescale 1ns / 1ps
-//////////////////////////////////////////////////////////////////////////////////
-// Company: Dept. of Computer Science, National Chiao Tung University
-// Engineer: Chun-Jen Tsai 
-// 
-// Create Date: 2018/12/11 16:04:41
-// Design Name: 
-// Module Name: lab9
-// Project Name: 
-// Target Devices: 
-// Tool Versions: 
-// Description: A circuit that show the animation of a fish swimming in a seabed
-//              scene on a screen through the VGA interface of the Arty I/O card.
-// 
-// Dependencies: vga_sync, clk_divider, sram 
-// 
-// Revision:
-// Revision 0.01 - File Created
-// Additional Comments:
-// 
-//////////////////////////////////////////////////////////////////////////////////
 
 module lab10(
     input  clk,
     input  reset_n,
     input  [3:0] usr_btn,
+    input  [3:0] usr_sw,
     output [3:0] usr_led,
     
     // VGA specific I/O ports
@@ -36,20 +17,36 @@ module lab10(
 
 // Declare system variables
 reg  [31:0] fish_clock;
-reg  [31:0] fish_clock2;
-wire [9:0]  pos;
-wire [9:0]  pos2;
+reg [9:0]  pos_right_x;
+reg [9:0]  pos_right_y;
+reg [9:0]  pos_left_x;
+reg [9:0]  pos_left_y;
+reg [9:0]  pos_ball_x;
+reg [9:0]  pos_ball_y;
+
+reg [9:0]  velocity_right_x;
+reg [9:0]  velocity_right_y;
+reg [9:0]  velocity_left_x;
+reg [9:0]  velocity_left_y;
+reg [9:0]  velocity_ball_x;
+reg [9:0]  velocity_ball_y;
+
+
+
 wire        fish_region;
-wire        fish_region2;
 
 // declare SRAM control signals
 wire [16:0] sram_addr;
-wire [16:0] sram_addr2;
-wire [16:0] sram_addr3;
+wire [16:0] sram_addr_left;
+wire [16:0] sram_addr_right;
+wire [16:0] sram_addr_ball;
+
 wire [11:0] data_in;
 wire [11:0] data_out;
-wire [11:0] data_out2;
-wire [11:0] data_out3;
+wire [11:0] data_out_left;
+wire [11:0] data_out_right;
+wire [11:0] data_out_ball;
+
 wire        sram_we, sram_en;
 
 // General VGA control signals
@@ -68,41 +65,42 @@ reg  [11:0] rgb_next; // RGB value for the next pixel
   
 // Application-specific VGA signals
 reg  [17:0] pixel_addr;
-reg  [17:0] pixel_addr2;
-reg  [17:0] pixel_addr3;
-reg  [17:0] background_for_pixel_addr;
+reg  [17:0] pixel_addr_left;
+reg  [17:0] pixel_addr_right;
+reg  [17:0] pixel_addr_ball;
 
+localparam[4:0] GRAVITY=1;
+
+localparam[4:0] S_MAIN_INIT=0,
+                S_MAIN_SET_POSITION_X=1,
+                S_MAIN_IDLE=2,
+                S_MAIN_SET_VELOCITY_X=3,
+                S_MAIN_SET_POSITION_Y=4,
+                S_MAIN_SET_VELOCITY_Y=5,
+                S_MAIN_FIX_POSITION_X=6,
+                S_MAIN_FIX_POSITION_Y=7,
+                S_MAIN_SET_BALL_POSITION=8,
+                S_MAIN_SET_BALL_VELOCITY=9;
+                
+                
+                
+                
+reg [4:0] P,P_next;
+reg [31:0]clock;
+
+wire finish_idle;
 // Declare the video buffer size
 localparam VBUF_W = 320; // video buffer width
 localparam VBUF_H = 240; // video buffer height
 
 // Set parameters for the fish images
-localparam FISH_VPOS2   = 70;  // Vertical location of the fish in the sea image.                top 
-localparam FISH_VPOS   =  130; // Vertical location of the fish in the sea image. data2         down
-localparam FISH_W      =  78;  // Width of the fish.  
-localparam FISH_H      =  79;  // Height of the fish.
-
-//localparam FISH_H      = 44; // Height of the fish.
-reg [17:0] fish_addr[0:2];   // Address array for up to 8 fish images.
-
-
+localparam FISH_VPOS   = 64; // Vertical location of the fish in the sea image.
+localparam FISH_W      = 78; // Width of the fish.
+localparam FISH_H      = 79; // Height of the fish.
 
 // Initializes the fish images starting addresses.
 // Note: System Verilog has an easier way to initialize an array,
 //       but we are using Verilog 2001 :(
-initial begin
-  fish_addr[0] = VBUF_W*VBUF_H + 18'd0;         /* Addr for fish image #1 */
-  fish_addr[1] = VBUF_W*VBUF_H + FISH_W*FISH_H; /* Addr for fish image #2 */
-  fish_addr[2] = VBUF_W*VBUF_H + FISH_W*FISH_H*2; /* Addr for fish image #2 */
-  fish_addr[3] = VBUF_W*VBUF_H + FISH_W*FISH_H*3; /* Addr for fish image #2 */
-  fish_addr[4] = VBUF_W*VBUF_H + FISH_W*FISH_H*4; /* Addr for fish image #2 */
-  fish_addr[5] = VBUF_W*VBUF_H + FISH_W*FISH_H*5; /* Addr for fish image #2 */
-  fish_addr[6] = VBUF_W*VBUF_H + FISH_W*FISH_H*6; /* Addr for fish image #2 */
-  fish_addr[7] = VBUF_W*VBUF_H + FISH_W*FISH_H*7; /* Addr for fish image #2 */
-
-end
-
-
 
 // Instiantiate the VGA sync signal generator
 vga_sync vs0(
@@ -110,9 +108,6 @@ vga_sync vs0(
   .visible(video_on), .p_tick(pixel_tick),
   .pixel_x(pixel_x), .pixel_y(pixel_y)
 );
-// oHS : Ready to get next pixel?
-// oVS : Is it active scan line period or sync period?
-// ??visible?? is false, the RGB output to the monitor MUST be all zeros
 
 clk_divider#(2) clk_divider0(
   .clk(clk),
@@ -120,183 +115,231 @@ clk_divider#(2) clk_divider0(
   .clk_out(vga_clk)
 );
 
-
-
 // ------------------------------------------------------------------------
 // The following code describes an initialized SRAM memory block that
 // stores a 320x240 12-bit seabed image, plus two 64x32 fish images.
 sram #(.DATA_WIDTH(12), .ADDR_WIDTH(18), .RAM_SIZE(VBUF_W*VBUF_H))
   ram0 (.clk(clk), .we(sram_we), .en(sram_en),
           .addr(sram_addr), .data_i(data_in), .data_o(data_out));
-
-sram2 #(.DATA_WIDTH(12), .ADDR_WIDTH(18), .RAM_SIZE(FISH_W*FISH_H))
+sram_fish1 #(.DATA_WIDTH(12), .ADDR_WIDTH(18), .RAM_SIZE(78*79))
   ram1 (.clk(clk), .we(sram_we), .en(sram_en),
-          .addr(sram_addr2), .data_i(data_in), .data_o(data_out2));
-
-sram3 #(.DATA_WIDTH(12), .ADDR_WIDTH(18), .RAM_SIZE(FISH_W*FISH_H))
+          .addr(sram_addr_left), .data_i(data_in), .data_o(data_out_left));
+sram_fish2 #(.DATA_WIDTH(12), .ADDR_WIDTH(18), .RAM_SIZE(78*79))
   ram2 (.clk(clk), .we(sram_we), .en(sram_en),
-          .addr(sram_addr3), .data_i(data_in), .data_o(data_out3));
+          .addr(sram_addr_right), .data_i(data_in), .data_o(data_out_right));
+sram_fish3 #(.DATA_WIDTH(12), .ADDR_WIDTH(18), .RAM_SIZE(55*55))
+  ram3 (.clk(clk), .we(sram_we), .en(sram_en),
+          .addr(sram_addr_ball), .data_i(data_in), .data_o(data_out_ball));
 
-
-assign sram_we = usr_btn[0]; // In this demo, we do not write the SRAM. However, if
+assign sram_we = usr_sw[3]; // In this demo, we do not write the SRAM. However, if
                              // you set 'sram_we' to 0, Vivado fails to synthesize
                              // ram0 as a BRAM -- this is a bug in Vivado.
 assign sram_en = 1;          // Here, we always enable the SRAM block.
-assign sram_addr = pixel_addr;
-assign sram_addr2 = pixel_addr2;
-assign sram_addr3 = pixel_addr3;
+assign sram_addr_left = pixel_addr_left;
+assign sram_addr_right = pixel_addr_right;
+assign sram_addr_ball = pixel_addr_ball;
 
+assign sram_addr = pixel_addr;
 assign data_in = 12'h000; // SRAM is read-only so we tie inputs to zeros.
 // End of the SRAM memory block.
 // ------------------------------------------------------------------------
 
 // VGA color pixel generator
 assign {VGA_RED, VGA_GREEN, VGA_BLUE} = rgb_reg;
-// RGB value for the current pixel
-
-
-
+reg [4:0]mode=0;
+wire ball_region;
 // ------------------------------------------------------------------------
-// An animation clock for the motion of the fish, upper bits of the
-// fish clock is the "x position of the fish" on the VGA screen.
-// Note that the fish will move one screen pixel every 2^20 clock cycles,
-// or 10.49 msec
-// pos [9:0]
 
-assign pos  = fish_clock[31:20]; 
-assign pos2 = fish_clock2[31:20]; 
-// "fish_clock" is the position of fish
-// the x position of the right edge of the fish image in the 640x480 VGA screen
-// localparam VBUF_W = 320  video buffer width
-// localparam FISH_W = 64;  Width of the fish.
+always@(posedge clk)begin
+if(~reset_n)mode<=0;
+else if(P==S_MAIN_INIT)mode<=mode==5?0:mode+1;
+end
 
-always @(posedge clk) begin
-  if (~reset_n || fish_clock[31:21] > VBUF_W + FISH_W)
-    // VBUF_W + FISH_W -> all fish iver screen then clear position to 0
-    fish_clock <= 0;
-  else begin
-    if(usr_btn[3])begin
-      fish_clock <= fish_clock + 5; 
-    end else if(usr_btn[2]) begin
-      fish_clock <= fish_clock + 1;
-    end else begin
-      fish_clock <= fish_clock ;        
-    end    
+
+always@(posedge clk)begin
+if(~reset_n)P<=S_MAIN_INIT;
+else P<=P_next;
+end
+
+always@(*)begin
+
+case(P)
+  S_MAIN_INIT:
+     P_next<=S_MAIN_SET_VELOCITY_X;
+  S_MAIN_SET_VELOCITY_X:
+     P_next<=S_MAIN_SET_VELOCITY_Y;
+  S_MAIN_SET_VELOCITY_Y:
+     P_next<=S_MAIN_SET_BALL_VELOCITY;
+  S_MAIN_SET_BALL_VELOCITY:
+     P_next<=S_MAIN_SET_POSITION_X;
+  S_MAIN_SET_POSITION_X:
+     P_next<=S_MAIN_SET_POSITION_Y;
+  S_MAIN_SET_POSITION_Y:
+     P_next<=S_MAIN_SET_BALL_POSITION;
+  S_MAIN_SET_BALL_POSITION:
+     P_next<=S_MAIN_FIX_POSITION_X;
+  S_MAIN_FIX_POSITION_X:
+     P_next<=S_MAIN_FIX_POSITION_Y;
+  S_MAIN_FIX_POSITION_Y:
+     P_next<=S_MAIN_IDLE;
+  S_MAIN_IDLE:
+     if(finish_idle==1)P_next<=S_MAIN_INIT;
+     else P_next=S_MAIN_IDLE;
+  
+
+endcase
+end
+
+assign finish_idle=(clock==50000)?1:0;
+
+always@(posedge clk)begin
+clock<=clock==300000?0:clock+1;
+end
+
+always@(posedge clk)begin
+if(~reset_n)begin 
+   
+  end
+else if(P==S_MAIN_SET_VELOCITY_X)begin
+
+if(usr_btn[0])velocity_right_x<=1;
+else if(usr_btn[2])velocity_right_x<=0-1;
+else velocity_right_x<=0;
+
+end
+else if(P==S_MAIN_SET_VELOCITY_Y&&mode==5)begin
+
+if(usr_btn[1]&&pos_right_y==401)velocity_right_y<=21;
+else if (pos_right_y==401)velocity_right_y<=0;
+else velocity_right_y<=(velocity_right_y==(-21))?0:velocity_right_y-GRAVITY;
+
+end
+else if(P==S_MAIN_SET_BALL_VELOCITY&&mode==5)begin
+
+velocity_ball_y<=velocity_ball_y-GRAVITY;
+
+end
+else if(P==S_MAIN_FIX_POSITION_X)begin
+  if(pos_ball_x>613||pos_ball_x<27)begin  velocity_ball_x<=(-1)* velocity_ball_x; end
+end
+else if(P==S_MAIN_FIX_POSITION_Y&&mode==5)begin
+  
+  if(pos_ball_y>413||pos_ball_y<27)begin velocity_ball_y<=(-1)* velocity_ball_y;  end
+ end
+
+end
+
+
+initial begin 
+   pos_left_x<=59; 
+  pos_left_y<=401; 
+  pos_right_x<=582; 
+  pos_right_y<=401;
+  pos_ball_x<=573;
+  pos_ball_y<=28;
+  
+  
+  velocity_right_x<=0;
+  velocity_right_y<=0;
+  velocity_left_x<=0;
+  velocity_left_y<=0;
+  velocity_ball_x<=0;
+  velocity_ball_y<=0;
+end
+
+always@(posedge clk)begin
+
+ if(~reset_n)begin 
+
+  end
+  else if(P==S_MAIN_SET_POSITION_X)begin
+  pos_right_x<=pos_right_x+velocity_right_x;
+  pos_ball_x<=pos_ball_x+velocity_ball_x;
+  end
+  else if(P==S_MAIN_SET_POSITION_Y&&mode==5)begin
+  pos_right_y<=pos_right_y-velocity_right_y;
+  end
+  else if(P==S_MAIN_SET_BALL_POSITION&&mode==5)begin
+  pos_ball_y<=pos_ball_y-velocity_ball_y;
+  end
+  else if(P==S_MAIN_FIX_POSITION_X)begin
+  if(pos_right_x>602)pos_right_x<=602;
+  else if(pos_right_x<361)pos_right_x<=361;
+  
+  if(pos_ball_x>613)pos_ball_x<=613;
+  else if(pos_ball_x<27)pos_ball_x<=27;
+  end
+  else if(P==S_MAIN_FIX_POSITION_Y&&mode==5)begin
+  //pos_right_y<=pos_right_y;
+  
+  if(pos_ball_y>413)begin pos_ball_y<=413;  end
+  else if(pos_ball_y<27)begin pos_ball_y<=27;  end
   end
 end
-// End of the animation clock code.
-// ------------------------------------------------------------------------
-
-always @(posedge clk) begin
-  if (~reset_n || fish_clock2[31:21] > VBUF_W + FISH_W)
-    // VBUF_W + FISH_W -> all fish iver screen then clear position to 0
-    fish_clock2 <= 0;
-  else begin
-    if(usr_btn[1])begin
-      fish_clock2 <= fish_clock2 + 5; 
-    end else if(usr_btn[2]) begin
-      fish_clock2 <= fish_clock2 + 1;
-    end else begin
-      fish_clock2 <= fish_clock2;        
-    end    
-  end
-end
-// End of the animation clock code.
-// ------------------------------------------------------------------------
 
 
-integer flag_fish_region = 0;
-integer flag_fish_region2 = 0;
-integer y_rec = 0;
-// ################### (AGU) ####################
-// ------------------------------------------------------------------------
-// Video frame buffer address generation unit (AGU) with scaling control
-// Note that the width x height of the fish image is 64x32, when scaled-up
-// on the screen, it becomes 128x64. 'pos' specifiebecomes 128x64. 'pos' specifies the right edge of the fish image.
+wire fish_region1 ;
+
 assign fish_region =
-  pixel_y >= (FISH_VPOS<<1) && pixel_y < (FISH_VPOS+FISH_H)<<1 && (pixel_x + 155) >= pos && pixel_x < pos + 1;
-
-assign fish_region2 =
-  pixel_y >= (FISH_VPOS2<<1) && pixel_y < (FISH_VPOS2+FISH_H)<<1 && (pixel_x + 155) >= pos2 && pixel_x < pos2 + 1;
+            pixel_y>= (pos_left_y-39) && pixel_y <=( pos_left_y+39)&&
+           pixel_x>= (pos_left_x-39) && pixel_x <=( pos_left_x +38);
+assign fish_region1 =
+           pixel_y>= (pos_right_y-39) && pixel_y <=( pos_right_y+39) &&
+           pixel_x>= (pos_right_x-39) && pixel_x <=( pos_right_x +38);
+assign ball_region =
+           pixel_y>= (pos_ball_y-27) && pixel_y <=( pos_ball_y+27) &&
+           pixel_x>= (pos_ball_x-27) && pixel_x <=( pos_ball_x+27);
 
 always @ (posedge clk) begin
-  if (~reset_n) begin
+  if (~reset_n)
     pixel_addr <= 0;
-    pixel_addr2 <= 0;
-    pixel_addr3 <= 0; 
-    flag_fish_region <= 0;
-    flag_fish_region2 <= 0;
-    background_for_pixel_addr <= 0;
-    y_rec <= 0;
-  end else if (fish_region && fish_region2)begin
-    pixel_addr3 <= ((pixel_y>>1)-FISH_VPOS2)*FISH_W + ((pixel_x +(FISH_W*2-1)-pos2)>>1); 
-    pixel_addr2 <= ((pixel_y>>1)-FISH_VPOS)*FISH_W  + ((pixel_x +(FISH_W*2-1)-pos)>>1);
-    pixel_addr  <= (pixel_y >> 1) * VBUF_W + (pixel_x >> 1);
-    flag_fish_region <= 1;
-    flag_fish_region2 <= 1;
-    y_rec <= pixel_y;
-  end else if (fish_region)begin
-    pixel_addr3 <= 0; 
-    pixel_addr2 <= ((pixel_y>>1)-FISH_VPOS)*FISH_W + ((pixel_x +(FISH_W*2-1)-pos)>>1);
-    pixel_addr  <= (pixel_y >> 1) * VBUF_W + (pixel_x >> 1);
-    flag_fish_region <= 1;
-    flag_fish_region2 <= 0;
-  end else if (fish_region2)begin
-    pixel_addr3 <= ((pixel_y>>1)-FISH_VPOS2)*FISH_W + ((pixel_x +(FISH_W*2-1)-pos2)>>1);
-    pixel_addr2 <= 0;
-    pixel_addr  <= (pixel_y >> 1) * VBUF_W + (pixel_x >> 1);
-    flag_fish_region <= 0;
-    flag_fish_region2 <= 1;
-  end else begin
+  else if(P==S_MAIN_IDLE)
     // Scale up a 320x240 image for the 640x480 display.
     // (pixel_x, pixel_y) ranges from (0,0) to (639, 479)
     pixel_addr <= (pixel_y >> 1) * VBUF_W + (pixel_x >> 1);
-    pixel_addr2 <= 0;
-    pixel_addr3 <= 0; 
-    flag_fish_region <= 0;
-    flag_fish_region2 <= 0;
-    // localparam VBUF_W = 320; // video buffer width
-  end
+end
+
+always @ (posedge clk) begin
+  if (fish_region&&P==S_MAIN_IDLE)
+    pixel_addr_left <= ((pixel_y)-pos_left_y+39)*FISH_W +(pixel_x-pos_left_x+39);
+  else
+    pixel_addr_left <=0;
+end
+
+always @ (posedge clk) begin
+  if (fish_region1&&P==S_MAIN_IDLE)
+    pixel_addr_right <= ((pixel_y)-pos_right_y+39)*FISH_W+(pixel_x-pos_right_x+39);
+  else
+    pixel_addr_right <=0;
+end
+always @ (posedge clk) begin
+  if (ball_region&&P==S_MAIN_IDLE)
+    pixel_addr_ball <= ((pixel_y)-pos_ball_y+27)*55+(pixel_x-pos_ball_x+27);
+  else
+    pixel_addr_ball <=0;
 end
 // End of the AGU code.
 // ------------------------------------------------------------------------
 
-
 // ------------------------------------------------------------------------
 // Send the video data in the sram to the VGA controller
 always @(posedge clk) begin
-  if (pixel_tick) rgb_reg <= rgb_next;
+  if (pixel_tick&&P==S_MAIN_IDLE) rgb_reg <= rgb_next;
 end
-// when pixel tick is 1, we must update the RGB value
-// based for the new coordinate (pixel_x, pixel_y)
 
 always @(*) begin
-  if (~video_on)
+  if (~video_on&&P==S_MAIN_IDLE)
     rgb_next <= 12'h000; // Synchronization period, must set RGB values to zero.
-  else
-    if(flag_fish_region && flag_fish_region2)begin
-      if(data_out2!=12'h0f0) rgb_next <= data_out2;
-      else  begin
-            if(y_rec>220) begin
-                rgb_next <= data_out;
-            end else begin
-                if(data_out3==12'h0f0) rgb_next <= data_out;
-                else rgb_next <= data_out3;
-            end
-      end
-    end else if(flag_fish_region)begin
-      if(data_out2==12'h0f0) rgb_next <= data_out;
-      else rgb_next <= data_out2;
-    end else if(flag_fish_region2)begin
-      if(data_out3==12'h0f0) rgb_next <= data_out;
-      else rgb_next <= data_out3;
-    end else begin
-      rgb_next <= data_out;
-    end
-    //rgb_next = data_out; // RGB value at (pixel_x, pixel_y)
+    else if(ball_region&&fish_region&&data_out_ball!=12'h0F0&&P==S_MAIN_IDLE)rgb_next<=data_out_ball;
+    else if(ball_region&&fish_region1&&data_out_ball!=12'h0F0&&P==S_MAIN_IDLE)rgb_next<=data_out_ball;   
+    else if(ball_region&&fish_region&&data_out_left!=12'h0F0&&P==S_MAIN_IDLE)rgb_next<=data_out_left;
+    else if(ball_region&&fish_region1&&data_out_right!=12'h0F0&&P==S_MAIN_IDLE)rgb_next<=data_out_right;   
+    else if(fish_region&&data_out_left!=12'h0F0&&P==S_MAIN_IDLE)rgb_next<=data_out_left;
+    else if(fish_region1&&data_out_right!=12'h0F0&&P==S_MAIN_IDLE)rgb_next<=data_out_right;
+    else if(ball_region&&data_out_ball!=12'h0F0&&P==S_MAIN_IDLE)rgb_next<=data_out_ball;    
+    else rgb_next <= data_out;
 end
 // End of the video data display code.
 // ------------------------------------------------------------------------
-
 
 endmodule
