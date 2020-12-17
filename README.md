@@ -26,8 +26,8 @@ This is final project of NCTU DLAB course used by Verilog.
 
 - [ ] 設計計分系統。
 
-- [ ] 設計球碰到玩家時，會拋物線回彈。
+- [x] 設計球碰到玩家時，會拋物線回彈。
 
-- [ ] 設計玩家可以跳躍。
+- [x] 設計玩家可以跳躍。
 
 - [ ] 設計可殺球，並讓球速變快。
