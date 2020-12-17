@@ -202,9 +202,9 @@ if(~reset_n)begin
   end
 else if(P==S_MAIN_SET_VELOCITY_X)begin
 
-if(usr_btn[0])velocity_right_x<=1;
+if(usr_btn[0])begin velocity_right_x<=1; velocity_left_x<=1;end 
 else if(usr_btn[2])velocity_right_x<=0-1;
-else velocity_right_x<=0;
+else begin velocity_right_x<=0; velocity_left_x<=0; end
 
 end
 else if(P==S_MAIN_SET_VELOCITY_Y&&mode==5)begin
@@ -221,21 +221,22 @@ velocity_ball_y<=velocity_ball_y-GRAVITY;
 end
 else if(P==S_MAIN_FIX_POSITION_X)begin
   if(pos_ball_x>613||pos_ball_x<27)begin  velocity_ball_x<=(-1)* velocity_ball_x; end
+  else if(pos_ball_x>=285 && pos_ball_x<=361 && pos_ball_y>260) begin velocity_ball_x<=(-1)* velocity_ball_x; end
 end
 else if(P==S_MAIN_FIX_POSITION_Y&&mode==5)begin
-  
-  if(pos_ball_y>413||pos_ball_y<27)begin velocity_ball_y<=(-1)* velocity_ball_y;  end
+  if(pos_ball_y>413||pos_ball_y<27)begin velocity_ball_y <= (-1)* velocity_ball_y;  end
+  else if(pos_ball_x>=285 && pos_ball_x<=361 && pos_ball_y>250 && pos_ball_y<270) begin velocity_ball_y <= (-1)* velocity_ball_y; end
  end
 
 end
 
 
 initial begin 
-   pos_left_x<=59; 
+  pos_left_x<=59; 
   pos_left_y<=401; 
   pos_right_x<=582; 
   pos_right_y<=401;
-  pos_ball_x<=573;
+  pos_ball_x<=320;
   pos_ball_y<=28;
   
   
@@ -243,7 +244,7 @@ initial begin
   velocity_right_y<=0;
   velocity_left_x<=0;
   velocity_left_y<=0;
-  velocity_ball_x<=0;
+  velocity_ball_x<=2;
   velocity_ball_y<=0;
 end
 
@@ -254,6 +255,7 @@ always@(posedge clk)begin
   end
   else if(P==S_MAIN_SET_POSITION_X)begin
   pos_right_x<=pos_right_x+velocity_right_x;
+  pos_left_x <=pos_left_x +velocity_left_x;
   pos_ball_x<=pos_ball_x+velocity_ball_x;
   end
   else if(P==S_MAIN_SET_POSITION_Y&&mode==5)begin
@@ -268,6 +270,9 @@ always@(posedge clk)begin
   
   if(pos_ball_x>613)pos_ball_x<=613;
   else if(pos_ball_x<27)pos_ball_x<=27;
+
+  if(pos_left_x>279)pos_left_x<=279;
+  else if(pos_left_x<60)pos_left_x<=60;
   end
   else if(P==S_MAIN_FIX_POSITION_Y&&mode==5)begin
   //pos_right_y<=pos_right_y;
