@@ -6,6 +6,6 @@ left: 78*79
 
 right: 78*79
 
-ball: 80*80
+ball: 55*55
 
 x of 欄杆: 320
