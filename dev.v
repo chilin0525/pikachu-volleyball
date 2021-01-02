@@ -23,6 +23,14 @@ reg [9:0]  pos_left_x;
 reg [9:0]  pos_left_y;
 reg [9:0]  pos_ball_x;
 reg [9:0]  pos_ball_y;
+reg [9:0]  pos_score_x ;
+reg [9:0]  pos_score_y ;
+reg [9:0]  pos_score2_x ;
+reg [9:0]  pos_score2_y ;
+
+reg [9:0] score_l;
+reg [9:0] score_r;
+reg [20:0] score_idx[2:0];
 
 reg signed [31:0]  velocity_right_x;
 reg signed [31:0]  velocity_right_y;
@@ -49,18 +57,24 @@ reg [31:0] diff_left;
 
 reg [31:0]  clock1;
 wire        fish_region;
+wire        score_region;
+wire        score_region2;
 
 // declare SRAM control signals
 wire [16:0] sram_addr;
 wire [16:0] sram_addr_left;
 wire [16:0] sram_addr_right;
 wire [16:0] sram_addr_ball;
+wire [16:0] sram_addr_score;
+wire [16:0] sram_addr_score2;
 wire finish;
 wire [11:0] data_in;
 wire [11:0] data_out;
 wire [11:0] data_out_left;
 wire [11:0] data_out_right;
 wire [11:0] data_out_ball;
+wire [11:0] data_out_score;
+wire [11:0] data_out_score2;
 
 wire        sram_we, sram_en;
 
@@ -82,7 +96,9 @@ reg  [11:0] rgb_next; // RGB value for the next pixel
 reg  [17:0] pixel_addr;
 reg  [17:0] pixel_addr_left;
 reg  [17:0] pixel_addr_right;
-reg  [17:0] pixel_addr_ball;
+reg  [30:0] pixel_addr_ball;
+reg  [17:0] pixel_addr_score;
+reg  [17:0] pixel_addr_score2;
 
 reg [30:0] pixel_ball_rec[0:3];
 reg [30:0] ball_pic_count;
@@ -150,18 +166,26 @@ sram_fish1 #(.DATA_WIDTH(12), .ADDR_WIDTH(18), .RAM_SIZE(78*79))
 sram_fish2 #(.DATA_WIDTH(12), .ADDR_WIDTH(18), .RAM_SIZE(78*79))
   ram2 (.clk(clk), .we(sram_we), .en(sram_en),
           .addr(sram_addr_right), .data_i(data_in), .data_o(data_out_right));
-sram_fish3 #(.DATA_WIDTH(12), .ADDR_WIDTH(18), .RAM_SIZE(55*55))
+sram_fish3 #(.DATA_WIDTH(12), .ADDR_WIDTH(18), .RAM_SIZE(55*55*4))
   ram3 (.clk(clk), .we(sram_we), .en(sram_en),
           .addr(sram_addr_ball), .data_i(data_in), .data_o(data_out_ball));
+ram_score #(.DATA_WIDTH(12), .ADDR_WIDTH(18), .RAM_SIZE(51*51*7))
+  ram4 (.clk(clk), .we(sram_we), .en(sram_en),
+          .addr(sram_addr_score), .data_i(data_in), .data_o(data_out_score));
+ram_score2 #(.DATA_WIDTH(12), .ADDR_WIDTH(18), .RAM_SIZE(51*51*7))
+  ram5 (.clk(clk), .we(sram_we), .en(sram_en),
+          .addr(sram_addr_score2), .data_i(data_in), .data_o(data_out_score2));
           
 assign usr_led[0]=(P==S_MAIN_DELAY)?1:0;
 assign sram_we = usr_sw[3]; // In this demo, we do not write the SRAM. However, if
                              // you set 'sram_we' to 0, Vivado fails to synthesize
                              // ram0 as a BRAM -- this is a bug in Vivado.
 assign sram_en = 1;          // Here, we always enable the SRAM block.
-assign sram_addr_left = pixel_addr_left;
-assign sram_addr_right = pixel_addr_right;
-assign sram_addr_ball = pixel_addr_ball;
+assign sram_addr_left   = pixel_addr_left;
+assign sram_addr_right  = pixel_addr_right;
+assign sram_addr_ball   = pixel_addr_ball;
+assign sram_addr_score  = pixel_addr_score;
+assign sram_addr_score2  = pixel_addr_score2;
 
 assign sram_addr = pixel_addr;
 assign data_in = 12'h000; // SRAM is read-only so we tie inputs to zeros.
@@ -236,10 +260,10 @@ always@(posedge clk)begin
   clock<=clock==300000?0:clock+1;
 end
 
-always@(posedge clk)begin
-  if(~reset_n || ball_pic_count>=3000000) ball_pic_count <= 0;
-  else ball_pic_count <= ball_pic_count + 1;
-end
+// always@(posedge clk)begin
+//   if(~reset_n || ball_pic_count>=3000000) ball_pic_count <= 0;
+//   else ball_pic_count <= ball_pic_count + 1;
+// end
 
 always@(posedge clk)begin
   if(~reset_n)begin 
@@ -306,6 +330,10 @@ initial begin
   pos_right_y <=401;
   pos_ball_x  <=573;
   pos_ball_y  <=28;
+  pos_score_x <=100; 
+  pos_score_y <=100;
+  pos_score2_x <=540; 
+  pos_score2_y <=100; 
 
   velocity_right_x<=0;
   velocity_right_y<=0;
@@ -315,9 +343,17 @@ initial begin
   velocity_ball_y <=0;
 
   pixel_ball_rec[0] <= 0;
-  pixel_ball_rec[1] <= 3025;
-  pixel_ball_rec[2] <= 6050;
-  pixel_ball_rec[3] <= 9075;
+  pixel_ball_rec[1] <= 3026;
+  pixel_ball_rec[2] <= 6051;
+  pixel_ball_rec[3] <= 9076;
+  
+  score_l <= 0;
+  score_r <= 1;
+  score_idx[0] <= 0;
+  score_idx[1] <= 2601;
+  score_idx[2] <= 5202;
+  score_idx[3] <= 7803;
+  score_idx[4] <= 10404;
 end
 
 always@(posedge clk)begin
@@ -360,18 +396,24 @@ always@(posedge clk)begin
 end
 
 
+
+
 wire fish_region1 ;
-
-assign fish_region =
-            pixel_y>=(pos_left_y-39)  && pixel_y<=( pos_left_y+39)&&
-            pixel_x>=(pos_left_x-39)  && pixel_x<=( pos_left_x +38);
+assign fish_region  =
+            pixel_y>=(pos_left_y-39)  && pixel_y<=(pos_left_y+39) &&
+            pixel_x>=(pos_left_x-39)  && pixel_x<=(pos_left_x +38);
 assign fish_region1 =
-            pixel_y>=(pos_right_y-39) && pixel_y<=( pos_right_y+39) &&
-            pixel_x>=(pos_right_x-39) && pixel_x<=( pos_right_x +38);
-assign ball_region =
-            pixel_y>=(pos_ball_y-27)  && pixel_y<=( pos_ball_y+27) &&
-            pixel_x>=(pos_ball_x-27)  && pixel_x<=( pos_ball_x+27);
-
+            pixel_y>=(pos_right_y-39) && pixel_y<=(pos_right_y+39) &&
+            pixel_x>=(pos_right_x-39) && pixel_x<=(pos_right_x +38);
+assign ball_region  =
+            pixel_y>=(pos_ball_y-27)  && pixel_y<=(pos_ball_y+27) &&
+            pixel_x>=(pos_ball_x-27)  && pixel_x<=(pos_ball_x+27);
+assign score_region =
+            pixel_y>=(pos_score_y-25) && pixel_y<=(pos_score_y+25) &&
+            pixel_x>=(pos_score_x-25) && pixel_x<=(pos_score_x+25);
+assign score_region2 =
+            pixel_y>=(pos_score2_y-15) && pixel_y<=(pos_score2_y+15) &&
+            pixel_x>=(pos_score2_x-15) && pixel_x<=(pos_score2_x+15);
 
 
 
@@ -400,12 +442,30 @@ end
 
 always @ (posedge clk) begin
   if (ball_region&&(P==S_MAIN_IDLE||P==S_MAIN_DELAY))
-    pixel_addr_ball <= ((pixel_y)-pos_ball_y+27)*55+(pixel_x-pos_ball_x+27)+pixel_ball_rec[1];
+    pixel_addr_ball <= ((pixel_y)-pos_ball_y+27)*55+(pixel_x-pos_ball_x+27)+pixel_ball_rec[pos_ball_x[8:7]];
+    //pixel_addr_ball <= ((pixel_y)-pos_ball_y+27)*55+(pixel_x-pos_ball_x+27);
   else if(P==S_MAIN_IDLE||P==S_MAIN_DELAY)
     pixel_addr_ball <=0;
 end
+
+always @ (posedge clk) begin
+  if (score_region&&(P==S_MAIN_IDLE||P==S_MAIN_DELAY))
+    pixel_addr_score <= ((pixel_y)-pos_score_y+25)*51+(pixel_x-pos_score_x+25)+2602;
+  else if(P==S_MAIN_IDLE||P==S_MAIN_DELAY)
+    pixel_addr_score <=0;
+end
+
+always @ (posedge clk) begin
+  if (score_region2&&(P==S_MAIN_IDLE||P==S_MAIN_DELAY))
+    pixel_addr_score2 <= ((pixel_y)-pos_score2_y+25)*51+(pixel_x-pos_score2_x+25)+5203;
+  else if(P==S_MAIN_IDLE||P==S_MAIN_DELAY)
+    pixel_addr_score2 <=0;
+end
 // End of the AGU code.
 // ------------------------------------------------------------------------
+
+
+
 
 
 // ------------------------------------------------------------------------
@@ -416,14 +476,16 @@ end
 
 always @(*) begin
   if (~video_on&&(P==S_MAIN_IDLE||P==S_MAIN_DELAY))rgb_next <= 12'h000; // Synchronization period, must set RGB values to zero.
-    else if(ball_region&&fish_region&&data_out_ball!=12'h0F0&&(P==S_MAIN_IDLE||P==S_MAIN_DELAY))rgb_next<=data_out_ball;
-    else if(ball_region&&fish_region1&&data_out_ball!=12'h0F0&&(P==S_MAIN_IDLE||P==S_MAIN_DELAY))rgb_next<=data_out_ball;   
-    else if(ball_region&&fish_region&&data_out_left!=12'h0F0&&(P==S_MAIN_IDLE||P==S_MAIN_DELAY))rgb_next<=data_out_left;
-    else if(ball_region&&fish_region1&&data_out_right!=12'h0F0&&(P==S_MAIN_IDLE||P==S_MAIN_DELAY))rgb_next<=data_out_right;   
-    else if(fish_region&&data_out_left!=12'h0F0&&(P==S_MAIN_IDLE||P==S_MAIN_DELAY))rgb_next<=data_out_left;
-    else if(fish_region1&&data_out_right!=12'h0F0&&(P==S_MAIN_IDLE||P==S_MAIN_DELAY))rgb_next<=data_out_right;
-    else if(ball_region&&data_out_ball!=12'h0F0&&(P==S_MAIN_IDLE||P==S_MAIN_DELAY))rgb_next<=data_out_ball;    
-    else if(P==S_MAIN_IDLE||P==S_MAIN_DELAY)rgb_next <= data_out;
+  else if(ball_region&&fish_region&&data_out_ball!=12'h0F0&&(P==S_MAIN_IDLE||P==S_MAIN_DELAY))rgb_next<=data_out_ball;
+  else if(ball_region&&fish_region1&&data_out_ball!=12'h0F0&&(P==S_MAIN_IDLE||P==S_MAIN_DELAY))rgb_next<=data_out_ball;   
+  else if(ball_region&&fish_region&&data_out_left!=12'h0F0&&(P==S_MAIN_IDLE||P==S_MAIN_DELAY))rgb_next<=data_out_left;
+  else if(ball_region&&fish_region1&&data_out_right!=12'h0F0&&(P==S_MAIN_IDLE||P==S_MAIN_DELAY))rgb_next<=data_out_right;   
+  else if(fish_region&&data_out_left!=12'h0F0&&(P==S_MAIN_IDLE||P==S_MAIN_DELAY))rgb_next<=data_out_left;
+  else if(fish_region1&&data_out_right!=12'h0F0&&(P==S_MAIN_IDLE||P==S_MAIN_DELAY))rgb_next<=data_out_right;
+  else if(ball_region&&data_out_ball!=12'h0F0&&(P==S_MAIN_IDLE||P==S_MAIN_DELAY))rgb_next<=data_out_ball; 
+  else if(score_region&&data_out_score!=12'h0F0)rgb_next<=data_out_score;  
+  else if(score_region2&&data_out_score2!=12'h0F0)rgb_next<=data_out_score2; 
+  else if(P==S_MAIN_IDLE||P==S_MAIN_DELAY)rgb_next <= data_out;
 end
 // End of the video data display code.
 // ------------------------------------------------------------------------
