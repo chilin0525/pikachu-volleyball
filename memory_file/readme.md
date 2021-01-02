@@ -8,4 +8,4 @@ right: 78*79
 
 ball: 55*55
 
-x of 欄杆: 320
+ball : {ball1.mem ball2.mem ball3.mem ball4.mem}
