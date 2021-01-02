@@ -255,78 +255,65 @@ end
 assign finish=(clock1==400000000)?1:0;
 assign finish_idle=(clock==50000)?1:0;
 
+// delay for start game 
 always@(posedge clk)begin
+  if(P==S_MAIN_DELAY)clock1<=clock1+1;
+  else clock1<=0;
+end
 
-if(P==S_MAIN_DELAY)clock1<=clock1+1;
-else clock1<=0;
+// delay for end game 
+always@(posedge clk)begin
+  clock<=clock==300000?0:clock+1;
 end
 
 always@(posedge clk)begin
-clock<=clock==300000?0:clock+1;
-
-end
-
-always@(posedge clk)begin
-if(~reset_n)begin 
+  if(~reset_n)begin 
    
-  end
-else if(P==S_MAIN_SET_VELOCITY_X)begin
-
-if(usr_btn[0])velocity_right_x<=1;
-else if(usr_btn[2])velocity_right_x<=0-1;
-else velocity_right_x<=0;
-
-end
-else if(P==S_MAIN_SET_VELOCITY_Y&&mode==5)begin
-
-if(usr_btn[1]&&pos_right_y==401)velocity_right_y<=21;
-else if (pos_right_y==401)velocity_right_y<=0;
-else velocity_right_y<=(velocity_right_y==(-21))?0:velocity_right_y-GRAVITY;
-
-end
-else if(P==S_MAIN_SET_BALL_VELOCITY&&mode==5)begin
-
-velocity_ball_y<=velocity_ball_y-GRAVITY;
-
-end
-else if(P==S_MAIN_FIX_POSITION_X)begin
-  if(pos_ball_x>613||pos_ball_x<27)begin  velocity_ball_x<=(-1)* velocity_ball_x; end
-end
-else if(P==S_MAIN_FIX_POSITION_Y&&mode==5)begin
-  
-  if(pos_ball_y>413||pos_ball_y<27)begin velocity_ball_y<=(-1)* velocity_ball_y;  end
- end
-  else if(P==S_MAIN_DETECT)begin
+  end else if(P==S_MAIN_SET_VELOCITY_X)begin
+    if(usr_btn[0])velocity_right_x<=1;
+    else if(usr_btn[2])velocity_right_x<=0-1;
+    else velocity_right_x<=0;
+    // set position of pikachu 
+  end else if(P==S_MAIN_SET_VELOCITY_Y&&mode==5)begin
+    if(usr_btn[1]&&pos_right_y==401)velocity_right_y<=21;
+    else if (pos_right_y==401)velocity_right_y<=0;
+    else velocity_right_y<=(velocity_right_y==(-21))?0:velocity_right_y-GRAVITY;
+  end else if(P==S_MAIN_SET_BALL_VELOCITY&&mode==5)begin
+    velocity_ball_y<=velocity_ball_y-GRAVITY;
+    // sub gravity 
+  end else if(P==S_MAIN_FIX_POSITION_X)begin
+    if(pos_ball_x>613||pos_ball_x<27)begin  velocity_ball_x<=(-1)* velocity_ball_x; end
+    // rebound for ball 
+  end else if(P==S_MAIN_FIX_POSITION_Y&&mode==5)begin
+    if(pos_ball_y>413||pos_ball_y<27)begin velocity_ball_y<=(-1)* velocity_ball_y;  end
+    // rebound for ball 
+  end else if(P==S_MAIN_DETECT)begin
  
-  if(right_sum<=3600&&right_diff_x<20&&right_diff_x>(-30))begin velocity_ball_y<=22;  velocity_ball_x<=0;  end
-  else if(right_sum<=3600&&right_diff_x>=20)begin velocity_ball_y<=22;  velocity_ball_x<=2;  end
-  //else if(right_sum<=3600&&diff_right>=20)begin velocity_ball_y<=22;  velocity_ball_x<=0;  end
-  else if(right_sum<=3600&&right_diff_x<=(-30))begin velocity_ball_y<=22;  velocity_ball_x<=0-2;  end
-  //else if(right_sum<=3600&&diff_right<=-20)begin velocity_ball_y<=22;  velocity_ball_x<=0;  end
+    if(right_sum<=3600&&right_diff_x<20&&right_diff_x>(-30))begin velocity_ball_y<=22;  velocity_ball_x<=0;  end
+    else if(right_sum<=3600&&right_diff_x>=20)begin velocity_ball_y<=22;  velocity_ball_x<=2;  end
+    //else if(right_sum<=3600&&diff_right>=20)begin velocity_ball_y<=22;  velocity_ball_x<=0;  end
+    else if(right_sum<=3600&&right_diff_x<=(-30))begin velocity_ball_y<=22;  velocity_ball_x<=0-2;  end
+    //else if(right_sum<=3600&&diff_right<=-20)begin velocity_ball_y<=22;  velocity_ball_x<=0;  end
 
-  
- if(left_sum<=3600&&left_diff_x<30&&left_diff_x>(-20))begin velocity_ball_y<=22;  velocity_ball_x<=0;  end
-  else if(left_sum<=3600&&left_diff_x>=30)begin velocity_ball_y<=22;  velocity_ball_x<=2;  end
- // else if(left_sum<=3600&&diff_left>=20)begin velocity_ball_y<=22;  velocity_ball_x<=0;  end
-  else if(left_sum<=3600&&left_diff_x<=(-20))begin velocity_ball_y<=22;  velocity_ball_x<=0-2;  end
- // else if(left_sum<=3600&&diff_left<=-20)begin velocity_ball_y<=22;  velocity_ball_x<=0;  end
+    
+    if(left_sum<=3600&&left_diff_x<30&&left_diff_x>(-20))begin velocity_ball_y<=22;  velocity_ball_x<=0;  end
+    else if(left_sum<=3600&&left_diff_x>=30)begin velocity_ball_y<=22;  velocity_ball_x<=2;  end
+  // else if(left_sum<=3600&&diff_left>=20)begin velocity_ball_y<=22;  velocity_ball_x<=0;  end
+    else if(left_sum<=3600&&left_diff_x<=(-20))begin velocity_ball_y<=22;  velocity_ball_x<=0-2;  end
+  // else if(left_sum<=3600&&diff_left<=-20)begin velocity_ball_y<=22;  velocity_ball_x<=0;  end
 
-  
- 
   end
-
 end
 
 
 initial begin 
-   pos_left_x<=59; 
+  pos_left_x<=59; 
   pos_left_y<=401; 
   pos_right_x<=582; 
   pos_right_y<=401;
   pos_ball_x<=573;
   pos_ball_y<=28;
-  
-  
+
   velocity_right_x<=0;
   velocity_right_y<=0;
   velocity_left_x<=0;
@@ -336,70 +323,57 @@ initial begin
 end
 
 always@(posedge clk)begin
-
- if(P==S_MAIN_DELAY)begin 
-  pos_ball_y<=28;
+  if(P==S_MAIN_DELAY)begin 
+    pos_ball_y<=28;
+  end else if(P==S_MAIN_SET_POSITION_X)begin
+    pos_right_x<=pos_right_x+velocity_right_x;
+    pos_ball_x<=pos_ball_x+velocity_ball_x;
+  end else if(P==S_MAIN_SET_POSITION_Y&&mode==5)begin
+    pos_right_y<=pos_right_y-velocity_right_y;
+  end else if(P==S_MAIN_SET_BALL_POSITION&&mode==5)begin
+    pos_ball_y<=pos_ball_y-velocity_ball_y;
+  end else if(P==S_MAIN_FIX_POSITION_X)begin
+    if(pos_right_x>602)pos_right_x<=602;
+    else if(pos_right_x<361)pos_right_x<=361;
+    
+    if(pos_ball_x>613)pos_ball_x<=613;
+    else if(pos_ball_x<27)pos_ball_x<=27;
+  end else if(P==S_MAIN_FIX_POSITION_Y&&mode==5)begin
+    if(pos_ball_y>413)begin pos_ball_y<=413;  end
+    else if(pos_ball_y<27)begin pos_ball_y<=27;  end
+  end else if(P==S_MAIN_CALCULATE)begin
+    right_diff_x  <=pos_ball_x  - pos_right_x;
+    right_diff_y  <=pos_ball_y  - pos_right_y;
+    left_diff_x   <=pos_ball_x  - pos_left_x;
+    left_diff_y   <=pos_ball_y  - pos_left_y;
+    // calcalate distance of ball and pikachu
+  end else if(P==S_MAIN_CALCULATE1)begin
+    right_square_x<=right_diff_x* right_diff_x;
+    right_square_y<=right_diff_y* right_diff_y;
+    left_square_x <=left_diff_x * left_diff_x;
+    left_square_y <=left_diff_y * left_diff_y;
+    // diff**2
+  end else if(P==S_MAIN_CALCULATE2)begin
+    right_sum <=  right_square_x  + right_square_y;
+    left_sum  <=  left_square_x   + left_square_y;
+    // get distance
   end
-  else if(P==S_MAIN_SET_POSITION_X)begin
-  pos_right_x<=pos_right_x+velocity_right_x;
-  pos_ball_x<=pos_ball_x+velocity_ball_x;
-  end
-  else if(P==S_MAIN_SET_POSITION_Y&&mode==5)begin
-  pos_right_y<=pos_right_y-velocity_right_y;
-  end
-  else if(P==S_MAIN_SET_BALL_POSITION&&mode==5)begin
-  pos_ball_y<=pos_ball_y-velocity_ball_y;
-  end
-  else if(P==S_MAIN_FIX_POSITION_X)begin
-  if(pos_right_x>602)pos_right_x<=602;
-  else if(pos_right_x<361)pos_right_x<=361;
-  
-  if(pos_ball_x>613)pos_ball_x<=613;
-  else if(pos_ball_x<27)pos_ball_x<=27;
-  end
-  else if(P==S_MAIN_FIX_POSITION_Y&&mode==5)begin
-  //pos_right_y<=pos_right_y;
-  
-  if(pos_ball_y>413)begin pos_ball_y<=413;  end
-  else if(pos_ball_y<27)begin pos_ball_y<=27;  end
-  end
-  else if(P==S_MAIN_CALCULATE)begin
-
-  right_diff_x<=pos_ball_x-pos_right_x;
-  right_diff_y<=pos_ball_y-pos_right_y;
-  left_diff_x<=pos_ball_x-pos_left_x;
-  left_diff_y<=pos_ball_y-pos_left_y;
-  end
-  else if(P==S_MAIN_CALCULATE1)begin
-
-  right_square_x<=right_diff_x*right_diff_x;
-  right_square_y<=right_diff_y*right_diff_y;
-  left_square_x<=left_diff_x*left_diff_x;
-  left_square_y<=left_diff_y*left_diff_y;
-  end
-  else if(P==S_MAIN_CALCULATE2)begin
-
-  right_sum<=right_square_x+right_square_y;
-  left_sum<=left_square_x+left_square_y;
- 
-  // diff_right<=pos_ball_x-pos_right_x;
-   // diff_left<=pos_ball_x-pos_left_x;
-  end
-  
 end
 
 
 wire fish_region1 ;
 
 assign fish_region =
-            pixel_y>= (pos_left_y-39) && pixel_y <=( pos_left_y+39)&&
-           pixel_x>= (pos_left_x-39) && pixel_x <=( pos_left_x +38);
+            pixel_y>=(pos_left_y-39)  && pixel_y<=( pos_left_y+39)&&
+            pixel_x>=(pos_left_x-39)  && pixel_x<=( pos_left_x +38);
 assign fish_region1 =
-           pixel_y>= (pos_right_y-39) && pixel_y <=( pos_right_y+39) &&
-           pixel_x>= (pos_right_x-39) && pixel_x <=( pos_right_x +38);
+            pixel_y>=(pos_right_y-39) && pixel_y<=( pos_right_y+39) &&
+            pixel_x>=(pos_right_x-39) && pixel_x<=( pos_right_x +38);
 assign ball_region =
-           pixel_y>= (pos_ball_y-27) && pixel_y <=( pos_ball_y+27) &&
-           pixel_x>= (pos_ball_x-27) && pixel_x <=( pos_ball_x+27);
+            pixel_y>=(pos_ball_y-27)  && pixel_y<=( pos_ball_y+27) &&
+            pixel_x>=(pos_ball_x-27)  && pixel_x<=( pos_ball_x+27);
+
+
 
 always @ (posedge clk) begin
   if (~reset_n)
@@ -423,6 +397,7 @@ always @ (posedge clk) begin
   else if(P==S_MAIN_IDLE||P==S_MAIN_DELAY)
     pixel_addr_right <=0;
 end
+
 always @ (posedge clk) begin
   if (ball_region&&(P==S_MAIN_IDLE||P==S_MAIN_DELAY))
     pixel_addr_ball <= ((pixel_y)-pos_ball_y+27)*55+(pixel_x-pos_ball_x+27);
