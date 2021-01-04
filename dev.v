@@ -125,7 +125,8 @@ localparam[4:0] S_MAIN_INIT=0,
                 S_MAIN_PREDICT=15,
                 S_MAIN_ASSIGN_ROBOT=16,
                 S_MAIN_FIX=17,
-                S_MAIN_DELAY_ROUND=18;
+                S_MAIN_DELAY_ROUND=18,
+                S_MAIN_FINISH=19;
                 
                 
                 
@@ -236,21 +237,14 @@ always@(posedge clk)begin
             round_over<=1;
             if(pos_ball_x>320)begin 
                 bool<=2; 
+                if(flag_1==1)begin score_l<=score_l+1;flag_1 <= 0;end
             end else begin 
                 bool<=1;
-            end 
+                if(flag_1==1)begin score_r<=score_r+1;flag_1 <= 0;end
+            end
+            
         end else begin bool<=0;round_over<=0;end
-    end 
-    
-     if(pos_ball_y>410)begin
-        if(pos_ball_x>320)begin 
-            if(flag_1==1)begin score_l<=score_l+1;flag_1 <= 0;end
-        end else begin 
-            if(flag_1==1)begin score_r<=score_r+1;flag_1 <= 0;end
-        end
-     end
-    
-    if(P == S_MAIN_IDLE && P_next == S_MAIN_DELAY) begin
+    end else if(P == S_MAIN_CALCULATE) begin
         flag_1 <= 1;
     end
 end
@@ -261,7 +255,8 @@ always@(*)begin
       if(finish) P_next<=S_MAIN_INIT;
       else P_next<=S_MAIN_DELAY;
     S_MAIN_INIT:
-      P_next<=S_MAIN_SET_VELOCITY_X;
+    if(score_r==7||score_l==7)P_next<=S_MAIN_FINISH;
+     else  P_next<=S_MAIN_SET_VELOCITY_X;
     S_MAIN_SET_VELOCITY_X:
       P_next<=S_MAIN_SET_VELOCITY_Y;
     S_MAIN_SET_VELOCITY_Y:
@@ -297,6 +292,8 @@ always@(*)begin
       if(finish_idle==1)P_next<=S_MAIN_INIT;
       else if(round_over==1)P_next<=S_MAIN_DELAY;
       else P_next=S_MAIN_IDLE;
+    S_MAIN_FINISH:
+    P_next<=S_MAIN_FINISH;
     
   endcase
 end
@@ -579,14 +576,15 @@ end
 
 always @ (posedge clk) begin
   if (score_region&&(P==S_MAIN_IDLE||P==S_MAIN_DELAY))
-    if(score_l==0) pixel_addr_score <= ((pixel_y)-pos_score_y+25)*51+(pixel_x-pos_score_x+25)+0;
-    else if(score_l==1) pixel_addr_score <= ((pixel_y)-pos_score_y+25)*51+(pixel_x-pos_score_x+25)+2601;
-    else if(score_l==2) pixel_addr_score <= ((pixel_y)-pos_score_y+25)*51+(pixel_x-pos_score_x+25)+5202;
-    else if(score_l==3) pixel_addr_score <= ((pixel_y)-pos_score_y+25)*51+(pixel_x-pos_score_x+25)+7803;
-    else if(score_l==4) pixel_addr_score <= ((pixel_y)-pos_score_y+25)*51+(pixel_x-pos_score_x+25)+10404;
-    else if(score_l==5) pixel_addr_score <= ((pixel_y)-pos_score_y+25)*51+(pixel_x-pos_score_x+25)+13006;
-    else if(score_l==6) pixel_addr_score <= ((pixel_y)-pos_score_y+25)*51+(pixel_x-pos_score_x+25)+15607;
-    else if(score_l==7) pixel_addr_score <= ((pixel_y)-pos_score_y+25)*51+(pixel_x-pos_score_x+25)+18208;
+      if(score_l==0)pixel_addr_score <= ((pixel_y)-pos_score_y+25)*51+(pixel_x-pos_score_x+25)+0;
+      else if(score_l==1)pixel_addr_score <= ((pixel_y)-pos_score_y+25)*51+(pixel_x-pos_score_x+25)+2601;
+      else if(score_l==2)pixel_addr_score <= ((pixel_y)-pos_score_y+25)*51+(pixel_x-pos_score_x+25)+5202;
+      else if(score_l==3)pixel_addr_score <= ((pixel_y)-pos_score_y+25)*51+(pixel_x-pos_score_x+25)+7803;
+      else if(score_l==4)pixel_addr_score <= ((pixel_y)-pos_score_y+25)*51+(pixel_x-pos_score_x+25)+10404;
+      else if(score_l==5)pixel_addr_score <= ((pixel_y)-pos_score_y+25)*51+(pixel_x-pos_score_x+25)+13006;
+      else if(score_l==6)pixel_addr_score <= ((pixel_y)-pos_score_y+25)*51+(pixel_x-pos_score_x+25)+15607;
+      else if(score_l==7)pixel_addr_score <= ((pixel_y)-pos_score_y+25)*51+(pixel_x-pos_score_x+25)+18208;
+
   else if(P==S_MAIN_IDLE||P==S_MAIN_DELAY)
     pixel_addr_score <=0;
 end
@@ -594,14 +592,14 @@ end
 
 always @ (posedge clk) begin
   if (score_region2&&(P==S_MAIN_IDLE||P==S_MAIN_DELAY))
-       if(score_r==0) pixel_addr_score2 <= ((pixel_y)-pos_score2_y+25)*51+(pixel_x-pos_score2_x+25)+0;
-       else if(score_r==1) pixel_addr_score2 <= ((pixel_y)-pos_score2_y+25)*51+(pixel_x-pos_score2_x+25)+2601;
-       else if(score_r==2) pixel_addr_score2 <= ((pixel_y)-pos_score2_y+25)*51+(pixel_x-pos_score2_x+25)+5202;
-       else if(score_r==3) pixel_addr_score2 <= ((pixel_y)-pos_score2_y+25)*51+(pixel_x-pos_score2_x+25)+7803;
-       else if(score_r==4) pixel_addr_score2 <= ((pixel_y)-pos_score2_y+25)*51+(pixel_x-pos_score2_x+25)+10404;
-       else if(score_r==5) pixel_addr_score2 <= ((pixel_y)-pos_score2_y+25)*51+(pixel_x-pos_score2_x+25)+13006;
-       else if(score_r==6) pixel_addr_score2 <= ((pixel_y)-pos_score2_y+25)*51+(pixel_x-pos_score2_x+25)+15607;
-       else if(score_r==7) pixel_addr_score2 <= ((pixel_y)-pos_score2_y+25)*51+(pixel_x-pos_score2_x+25)+18208;
+          if(score_r==0)pixel_addr_score2 <= ((pixel_y)-pos_score2_y+25)*51+(pixel_x-pos_score2_x+25)+0;
+      else if(score_r==1)pixel_addr_score2 <= ((pixel_y)-pos_score2_y+25)*51+(pixel_x-pos_score2_x+25)+2601;
+      else if(score_r==2)pixel_addr_score2 <= ((pixel_y)-pos_score2_y+25)*51+(pixel_x-pos_score2_x+25)+5202;
+      else if(score_r==3)pixel_addr_score2 <= ((pixel_y)-pos_score2_y+25)*51+(pixel_x-pos_score2_x+25)+7803;
+      else if(score_r==4)pixel_addr_score2 <= ((pixel_y)-pos_score2_y+25)*51+(pixel_x-pos_score2_x+25)+10404;
+      else if(score_r==5)pixel_addr_score2 <= ((pixel_y)-pos_score2_y+25)*51+(pixel_x-pos_score2_x+25)+13006;
+      else if(score_r==6)pixel_addr_score2 <= ((pixel_y)-pos_score2_y+25)*51+(pixel_x-pos_score2_x+25)+15607;
+      else if(score_r==7)pixel_addr_score2 <= ((pixel_y)-pos_score2_y+25)*51+(pixel_x-pos_score2_x+25)+18208;
   else if(P==S_MAIN_IDLE||P==S_MAIN_DELAY)
     pixel_addr_score2 <=0;
 end
