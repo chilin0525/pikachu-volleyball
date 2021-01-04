@@ -181,10 +181,10 @@ sram_fish2 #(.DATA_WIDTH(12), .ADDR_WIDTH(18), .RAM_SIZE(78*79))
 sram_fish3 #(.DATA_WIDTH(12), .ADDR_WIDTH(18), .RAM_SIZE(55*55*4))
   ram3 (.clk(clk), .we(sram_we), .en(sram_en),
           .addr(sram_addr_ball), .data_i(data_in), .data_o(data_out_ball));
-ram_score #(.DATA_WIDTH(12), .ADDR_WIDTH(18), .RAM_SIZE(51*51*7))
+ram_score #(.DATA_WIDTH(12), .ADDR_WIDTH(18), .RAM_SIZE(51*51*9))
   ram4 (.clk(clk), .we(sram_we), .en(sram_en),
           .addr(sram_addr_score), .data_i(data_in), .data_o(data_out_score));
-ram_score2 #(.DATA_WIDTH(12), .ADDR_WIDTH(18), .RAM_SIZE(51*51*7))
+ram_score2 #(.DATA_WIDTH(12), .ADDR_WIDTH(18), .RAM_SIZE(51*51*9))
   ram5 (.clk(clk), .we(sram_we), .en(sram_en),
           .addr(sram_addr_score2), .data_i(data_in), .data_o(data_out_score2));
           
@@ -419,10 +419,14 @@ initial begin
   score_l <= 0;
   score_r <= 1;
   score_idx[0] <= 0;
-  score_idx[1] <= 2601;
-  score_idx[2] <= 5202;
-  score_idx[3] <= 7803;
-  score_idx[4] <= 10404;
+  score_idx[1] <= 2602;
+  score_idx[2] <= 5203;
+  score_idx[3] <= 7804;
+  score_idx[4] <= 10405;
+  score_idx[5] <= 13006;
+  score_idx[6] <= 15607;
+  score_idx[7] <= 18208;
+  
 end
 
 always@(posedge clk)begin
@@ -529,7 +533,7 @@ end
 
 always @ (posedge clk) begin
   if (score_region&&(P==S_MAIN_IDLE||P==S_MAIN_DELAY))
-    pixel_addr_score <= ((pixel_y)-pos_score_y+25)*51+(pixel_x-pos_score_x+25);//+score_idx[score_l];
+    pixel_addr_score <= ((pixel_y)-pos_score_y+25)*51+(pixel_x-pos_score_x+25)+score_idx[0];
   else if(P==S_MAIN_IDLE||P==S_MAIN_DELAY)
     pixel_addr_score <=0;
 end
@@ -537,7 +541,7 @@ end
 
 always @ (posedge clk) begin
   if (score_region2&&(P==S_MAIN_IDLE||P==S_MAIN_DELAY))
-    pixel_addr_score2 <= ((pixel_y)-pos_score2_y+25)*51+(pixel_x-pos_score2_x+25);//+score_idx[score_r];
+    pixel_addr_score2 <= ((pixel_y)-pos_score2_y+25)*51+(pixel_x-pos_score2_x+25)+score_idx[1];
   else if(P==S_MAIN_IDLE||P==S_MAIN_DELAY)
     pixel_addr_score2 <=0;
 end
