@@ -32,7 +32,7 @@ reg [9:0]  pos_score2_y ;
 
 reg [9:0] score_l;
 reg [9:0] score_r;
-reg [20:0] score_idx[2:0];
+reg [30:0] score_idx[3:0];
 
 reg signed [31:0]  velocity_right_x;
 reg signed [31:0]  velocity_right_y;
@@ -99,8 +99,8 @@ reg  [17:0] pixel_addr;
 reg  [17:0] pixel_addr_left;
 reg  [17:0] pixel_addr_right;
 reg  [30:0] pixel_addr_ball;
-reg  [17:0] pixel_addr_score;
-reg  [17:0] pixel_addr_score2;
+reg  [40:0] pixel_addr_score;
+reg  [40:0] pixel_addr_score2;
 
 reg [30:0] pixel_ball_rec[0:3];
 reg [30:0] ball_pic_count;
@@ -181,10 +181,10 @@ sram_fish2 #(.DATA_WIDTH(12), .ADDR_WIDTH(18), .RAM_SIZE(78*79))
 sram_fish3 #(.DATA_WIDTH(12), .ADDR_WIDTH(18), .RAM_SIZE(55*55*4))
   ram3 (.clk(clk), .we(sram_we), .en(sram_en),
           .addr(sram_addr_ball), .data_i(data_in), .data_o(data_out_ball));
-ram_score #(.DATA_WIDTH(12), .ADDR_WIDTH(18), .RAM_SIZE(51*51*9))
+ram_score #(.DATA_WIDTH(12), .ADDR_WIDTH(18), .RAM_SIZE(51*51*8))
   ram4 (.clk(clk), .we(sram_we), .en(sram_en),
           .addr(sram_addr_score), .data_i(data_in), .data_o(data_out_score));
-ram_score2 #(.DATA_WIDTH(12), .ADDR_WIDTH(18), .RAM_SIZE(51*51*9))
+ram_score2 #(.DATA_WIDTH(12), .ADDR_WIDTH(18), .RAM_SIZE(51*51*8))
   ram5 (.clk(clk), .we(sram_we), .en(sram_en),
           .addr(sram_addr_score2), .data_i(data_in), .data_o(data_out_score2));
           
@@ -416,8 +416,8 @@ initial begin
   pixel_ball_rec[2] <= 6051;
   pixel_ball_rec[3] <= 9076;
   
-  score_l <= 0;
-  score_r <= 1;
+  score_l <= 2;
+  score_r <= 3;
   score_idx[0] <= 0;
   score_idx[1] <= 2602;
   score_idx[2] <= 5203;
@@ -533,7 +533,7 @@ end
 
 always @ (posedge clk) begin
   if (score_region&&(P==S_MAIN_IDLE||P==S_MAIN_DELAY))
-    pixel_addr_score <= ((pixel_y)-pos_score_y+25)*51+(pixel_x-pos_score_x+25)+score_idx[0];
+    pixel_addr_score <= ((pixel_y)-pos_score_y+25)*51+(pixel_x-pos_score_x+25)+score_idx[score_l];
   else if(P==S_MAIN_IDLE||P==S_MAIN_DELAY)
     pixel_addr_score <=0;
 end
@@ -541,7 +541,7 @@ end
 
 always @ (posedge clk) begin
   if (score_region2&&(P==S_MAIN_IDLE||P==S_MAIN_DELAY))
-    pixel_addr_score2 <= ((pixel_y)-pos_score2_y+25)*51+(pixel_x-pos_score2_x+25)+score_idx[1];
+    pixel_addr_score2 <= ((pixel_y)-pos_score2_y+25)*51+(pixel_x-pos_score2_x+25)+score_idx[score_r];
   else if(P==S_MAIN_IDLE||P==S_MAIN_DELAY)
     pixel_addr_score2 <=0;
 end
