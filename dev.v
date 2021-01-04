@@ -418,10 +418,10 @@ initial begin
   
   score_l <= 2;
   score_r <= 3;
-  score_idx[0] <= 0;
-  score_idx[1] <= 2602;
-  score_idx[2] <= 5203;
-  score_idx[3] <= 7804;
+  score_idx[0] <=  0;
+  score_idx[1] <=  2602;
+  score_idx[2] <=  5203;
+  score_idx[3] <=  7804;
   score_idx[4] <= 10405;
   score_idx[5] <= 13006;
   score_idx[6] <= 15607;
@@ -533,7 +533,7 @@ end
 
 always @ (posedge clk) begin
   if (score_region&&(P==S_MAIN_IDLE||P==S_MAIN_DELAY))
-    pixel_addr_score <= ((pixel_y)-pos_score_y+25)*51+(pixel_x-pos_score_x+25)+score_idx[score_l];
+    pixel_addr_score <= ((pixel_y)-pos_score_y+25)*51+(pixel_x-pos_score_x+25)+10405;
   else if(P==S_MAIN_IDLE||P==S_MAIN_DELAY)
     pixel_addr_score <=0;
 end
@@ -541,7 +541,7 @@ end
 
 always @ (posedge clk) begin
   if (score_region2&&(P==S_MAIN_IDLE||P==S_MAIN_DELAY))
-    pixel_addr_score2 <= ((pixel_y)-pos_score2_y+25)*51+(pixel_x-pos_score2_x+25)+score_idx[score_r];
+    pixel_addr_score2 <= ((pixel_y)-pos_score2_y+25)*51+(pixel_x-pos_score2_x+25)+13006;
   else if(P==S_MAIN_IDLE||P==S_MAIN_DELAY)
     pixel_addr_score2 <=0;
 end
