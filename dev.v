@@ -64,6 +64,7 @@ wire        score_region2;
 
 // declare SRAM control signals
 wire [16:0] sram_addr;
+wire [16:0] sram_addr2;
 wire [16:0] sram_addr_left;
 wire [16:0] sram_addr_right;
 wire [16:0] sram_addr_ball;
@@ -72,6 +73,7 @@ wire [16:0] sram_addr_score2;
 wire finish;
 wire [11:0] data_in;
 wire [11:0] data_out;
+wire [11:0] data_out2;
 wire [11:0] data_out_left;
 wire [11:0] data_out_right;
 wire [11:0] data_out_ball;
@@ -96,6 +98,7 @@ reg  [11:0] rgb_next; // RGB value for the next pixel
   
 // Application-specific VGA signals
 reg  [17:0] pixel_addr;
+reg  [17:0] pixel_addr2;
 reg  [17:0] pixel_addr_left;
 reg  [17:0] pixel_addr_right;
 reg  [30:0] pixel_addr_ball;
@@ -147,6 +150,8 @@ wire finish_delay_round;
 // Declare the video buffer size
 localparam VBUF_W = 320; // video buffer width
 localparam VBUF_H = 240; // video buffer height
+localparam VBUF_W1 = 160; // video buffer width
+localparam VBUF_H1 = 120; // video buffer height
 
 // Set parameters for the fish images
 localparam FISH_VPOS   = 64; // Vertical location of the fish in the sea image.
@@ -173,9 +178,14 @@ clk_divider#(2) clk_divider0(
 // ------------------------------------------------------------------------
 // The following code describes an initialized SRAM memory block that
 // stores a 320x240 12-bit seabed image, plus two 64x32 fish images.
-sram #(.DATA_WIDTH(12), .ADDR_WIDTH(18), .RAM_SIZE(VBUF_W*VBUF_H))
+sram #(.DATA_WIDTH(12), .ADDR_WIDTH(18), .RAM_SIZE(VBUF_W*VBUF_H+VBUF_W1*VBUF_H1))
   ram0 (.clk(clk), .we(sram_we), .en(sram_en),
           .addr(sram_addr), .data_i(data_in), .data_o(data_out));
+/*         
+sram2 #(.DATA_WIDTH(12), .ADDR_WIDTH(18), .RAM_SIZE(320*240))
+  ram02 (.clk(clk), .we(sram_we), .en(sram_en),
+          .addr(sram_addr2), .data_i(data_in), .data_o(data_out2));
+ */       
 sram_fish1 #(.DATA_WIDTH(12), .ADDR_WIDTH(18), .RAM_SIZE(78*79))
   ram1 (.clk(clk), .we(sram_we), .en(sram_en),
           .addr(sram_addr_left), .data_i(data_in), .data_o(data_out_left));
@@ -191,7 +201,7 @@ ram_score #(.DATA_WIDTH(12), .ADDR_WIDTH(18), .RAM_SIZE(51*51*8))
 ram_score2 #(.DATA_WIDTH(12), .ADDR_WIDTH(18), .RAM_SIZE(51*51*8))
   ram5 (.clk(clk), .we(sram_we), .en(sram_en),
           .addr(sram_addr_score2), .data_i(data_in), .data_o(data_out_score2));
-          
+
 assign usr_led[0]=(P==S_MAIN_DELAY)?1:0;
 assign sram_we = usr_sw[3]; // In this demo, we do not write the SRAM. However, if
                              // you set 'sram_we' to 0, Vivado fails to synthesize
@@ -203,7 +213,9 @@ assign sram_addr_ball   = pixel_addr_ball;
 assign sram_addr_score  = pixel_addr_score;
 assign sram_addr_score2  = pixel_addr_score2;
 
+assign sram_addr2 = pixel_addr2;
 assign sram_addr = pixel_addr;
+
 assign data_in = 12'h000; // SRAM is read-only so we tie inputs to zeros.
 // End of the SRAM memory block.
 // ------------------------------------------------------------------------
@@ -231,7 +243,7 @@ reg flag_1 ;
 
 always@(posedge clk)begin
     // ############################################################################### 410
-    if(~reset_n)begin bool<=2; flag_1<=1;  end 
+    if(~reset_n)begin bool<=2; flag_1<=1; score_r<=0; score_l<=0; end 
     if(P==S_MAIN_IDLE)begin
         if(pos_ball_y>410)begin
             round_over<=1;
@@ -246,6 +258,9 @@ always@(posedge clk)begin
         end else begin bool<=0;round_over<=0;end
     end else if(P == S_MAIN_CALCULATE) begin
         flag_1 <= 1;
+    end
+    else if(P == S_MAIN_FINISH) begin
+         score_r<=0; score_l<=0;
     end
 end
 
@@ -356,11 +371,19 @@ always@(posedge clk)begin
   if(~reset_n)begin 
    
   end else if(P==S_MAIN_SET_VELOCITY_X)begin
+  if(!usr_sw[0])begin
     if(usr_btn[0])begin velocity_right_x<=1;/* velocity_left_x<=1; */end
     else if(usr_btn[2]) begin velocity_right_x<=0-1;/* velocity_left_x<=0-1; */end 
     else begin velocity_right_x<=0; /*velocity_left_x<=0;*/ end 
+    end
+    
+    else begin 
+    if(usr_btn[0])begin velocity_right_x<=1;/* velocity_left_x<=1; */end
+    else if(usr_btn[2]) begin velocity_right_x<=0-1;/* velocity_left_x<=0-1; */end 
+    end
     // set position of pikachu 
   end else if(P==S_MAIN_SET_VELOCITY_Y&&mode==5)begin
+  if(!usr_sw[0])begin
     if(usr_btn[1]&&pos_right_y==401)velocity_right_y<=21;
     else if (pos_right_y==401)velocity_right_y<=0;
     else velocity_right_y<=(velocity_right_y==(-21))?0:velocity_right_y-GRAVITY;
@@ -368,42 +391,71 @@ always@(posedge clk)begin
     if(pos_left_y==401&&velocity_ball_x==0&&pos_ball_y>220&&pos_ball_y<300&&left_diff_x<=30&&left_diff_x>=(-30)&&velocity_ball_y<0)velocity_left_y<=21;
     else if (pos_left_y==401)velocity_left_y<=0;
     else velocity_left_y<=(velocity_left_y==(-21))?0:velocity_left_y-GRAVITY;
+    end
+   else begin
+    if(usr_btn[1])velocity_right_y<=3;
+    else if (usr_btn[3])velocity_right_y<=0-3;
+    
+    //if(pos_left_y==401&&velocity_ball_x==0&&pos_ball_y>220&&pos_ball_y<300&&left_diff_x<=30&&left_diff_x>=(-30)&&velocity_ball_y<0)velocity_left_y<=21;
+    //else if (pos_left_y==401)velocity_left_y<=0;
+    //else velocity_left_y<=(velocity_left_y==(-21))?0:velocity_left_y-GRAVITY;
+    end
+    
   end else if(P==S_MAIN_SET_BALL_VELOCITY&&mode==5)begin
-    velocity_ball_y<=velocity_ball_y-GRAVITY;
+   if(!usr_sw[0])velocity_ball_y<=velocity_ball_y-GRAVITY;
+   else velocity_ball_y<=velocity_ball_y;
     // sub gravity 
-  end else if(P==S_MAIN_FIX_POSITION_X)begin
+  end 
+else if(P==S_MAIN_FIX_POSITION_X)begin
+    if(!usr_sw[0])begin
     if(pos_ball_x>613 || pos_ball_x<27) begin velocity_ball_x<=(-1)* velocity_ball_x; end
     else if(pos_ball_x>=290 && pos_ball_x<=350 && pos_ball_y>250) begin velocity_ball_x<=(-1)* velocity_ball_x; end
+    end
+    else begin
+    if(pos_ball_x>613 || pos_ball_x<27) begin velocity_ball_x<=(-1)* velocity_ball_x; end
+    else if(pos_ball_x>=290 && pos_ball_x<=350 && pos_ball_y>250) begin velocity_ball_x<=(-1)* velocity_ball_x; end
+    
+    if(pos_right_x>602)velocity_right_x<=(-1)* velocity_right_x;
+    else if(pos_right_x<361)velocity_right_x<=(-1)* velocity_right_x;
+    
+    if(pos_left_x>281)velocity_left_x<=(-1)* velocity_left_x;
+    else if(pos_left_x<39)velocity_left_x<=(-1)* velocity_left_x;
+    end
     // rebound for ball 
   end else if(P==S_MAIN_FIX_POSITION_Y&&mode==5)begin
+   if(!usr_sw[0])begin
     if(pos_ball_y>413 || pos_ball_y<27) begin velocity_ball_y<=(-1)* velocity_ball_y; end
     else if(pos_ball_x>=290 && pos_ball_x<=350 && pos_ball_y>250 && velocity_ball_y<-20) begin velocity_ball_y <= (-1)* velocity_ball_y; end
     else if(pos_ball_x>=290 && pos_ball_x<=350 && pos_ball_y>250 && pos_ball_y<270 && velocity_ball_y<0) begin velocity_ball_y <= (-1)* velocity_ball_y; end
+    end
+  else begin
+        if(pos_ball_y>413 || pos_ball_y<27) begin velocity_ball_y<=(-1)* velocity_ball_y; end
+    else if(pos_ball_x>=290 && pos_ball_x<=350 && pos_ball_y>250 && velocity_ball_y<-20) begin velocity_ball_y <= (-1)* velocity_ball_y; end
+    else if(pos_ball_x>=290 && pos_ball_x<=350 && pos_ball_y>250 && pos_ball_y<270 && velocity_ball_y<0) begin velocity_ball_y <= (-1)* velocity_ball_y; end
+    
+    if(pos_right_y>395)begin velocity_right_y<=(-1)* velocity_right_y;  end
+    else if(pos_right_y<39)begin  velocity_right_y<=(-1)* velocity_right_y;  end
+    
+    if(pos_left_y>395)begin  velocity_left_y<=(-1)* velocity_left_y; end
+    else if(pos_left_y<39)begin  velocity_left_y<=(-1)* velocity_left_y;  end
+    end
     // rebound for ball 
   end else if(P==S_MAIN_DETECT)begin
     // ball - right_x
+    if(!usr_sw[0])begin
     if(right_sum<=3600&&usr_btn[3]&&usr_btn[1])begin velocity_ball_y<=22; velocity_ball_x<=-3;end
     else if(right_sum<=3600&&usr_btn[3]&&usr_btn[2])begin velocity_ball_y<=-12; velocity_ball_x<=-4;end
     else if(right_sum<=3600&&right_diff_x<20&&right_diff_x>(-30))
       begin 
-        // if(usr_btn[3]) begin velocity_ball_y<=22;  velocity_ball_x<=-4; end 
-        // smash
-        // else begin 
-        //if(usr_btn[3]) begin  velocity_ball_y<=22; velocity_ball_x<=-4; end
          velocity_ball_y<=22;  velocity_ball_x<=0; 
-        // end
       end
     else if(right_sum<=3600&&right_diff_x>=20)
       begin 
-        //if(usr_btn[3]) begin  velocity_ball_y<=-18; velocity_ball_x<=-4; end
-        // smash for 前面
         velocity_ball_y<=22; velocity_ball_x<=2;   
       end
     //else if(right_sum<=3600&&diff_right>=20)begin velocity_ball_y<=22;  velocity_ball_x<=0;  end
     else if(right_sum<=3600&&right_diff_x<=(-30))
       begin 
-        //if(usr_btn[3]) begin velocity_ball_y<=-18;  velocity_ball_x<=-4; end 
-        // smash for 尾巴
         velocity_ball_y<=22;  velocity_ball_x<=0-2;
       end
     //else if(right_sum<=3600&&diff_right<=-20)begin velocity_ball_y<=22;  velocity_ball_x<=0;  end
@@ -412,6 +464,32 @@ always@(posedge clk)begin
     else if(left_sum<=3600&&left_diff_x>=30)begin velocity_ball_y<=22;  velocity_ball_x<=2;  end
     // else if(left_sum<=3600&&diff_left>=20)begin velocity_ball_y<=22;  velocity_ball_x<=0;  end
     else if(left_sum<=3600&&left_diff_x<=(-20))begin velocity_ball_y<=22;  velocity_ball_x<=0-2;  end
+    end
+    
+     else begin
+    //if(right_sum<=3600&&usr_btn[3]&&usr_btn[1])begin velocity_ball_y<=22; velocity_ball_x<=-3;end
+    //else if(right_sum<=3600&&usr_btn[3]&&usr_btn[2])begin velocity_ball_y<=-12; velocity_ball_x<=-4;end
+    if(right_sum<=3600&&right_diff_x<20&&right_diff_x>(-30))
+      begin 
+         velocity_ball_y<=3;  velocity_ball_x<=0; 
+      end
+    else if(right_sum<=3600&&right_diff_x>=20)
+      begin 
+        velocity_ball_y<=3; velocity_ball_x<=2;   
+      end
+    //else if(right_sum<=3600&&diff_right>=20)begin velocity_ball_y<=22;  velocity_ball_x<=0;  end
+    else if(right_sum<=3600&&right_diff_x<=(-30))
+      begin 
+        velocity_ball_y<=3;  velocity_ball_x<=0-2;
+      end
+    //else if(right_sum<=3600&&diff_right<=-20)begin velocity_ball_y<=22;  velocity_ball_x<=0;  end
+   // if(left_sum<=3600&&pos_left_y<400)begin velocity_ball_y<=22; velocity_ball_x<=3;end
+    //if(left_sum<=3600&&left_diff_x<30&&left_diff_x>(-20))begin velocity_ball_y<=6;  velocity_ball_x<=0;  end
+    if(left_sum<=3600&&left_diff_x>=0&&pos_ball_x<35)begin velocity_ball_y<=(-6);  velocity_ball_x<=(-2);  end
+    else if(left_sum<=3600&&left_diff_x>=0)begin velocity_ball_y<=6;  velocity_ball_x<=2;  end
+    // else if(left_sum<=3600&&diff_left>=20)begin velocity_ball_y<=22;  velocity_ball_x<=0;  end
+    else if(left_sum<=3600&&left_diff_x<=0)begin velocity_ball_y<=6;  velocity_ball_x<=0-2;  end
+    end
     // else if(left_sum<=3600&&diff_left<=-20)begin velocity_ball_y<=22;  velocity_ball_x<=0;  end
 
   end else if(P == S_MAIN_IDLE && P_next == S_MAIN_DELAY)begin
@@ -420,18 +498,30 @@ always@(posedge clk)begin
     velocity_left_x <=0;
     velocity_left_y <=0;
     velocity_ball_x <=0;
-    velocity_ball_y <=0;
-  end
-  else if(P==S_MAIN_ASSIGN_ROBOT)begin
+    velocity_ball_y <=usr_sw[0]?(-3):0;
+  end else if(P==S_MAIN_ASSIGN_ROBOT)begin
+  if(!usr_sw[0])begin
   if(pos_ball_x>pos_left_x&&pos_ball_x<320)velocity_left_x<=1;
   else if(pos_ball_x<pos_left_x&&pos_ball_x<320)velocity_left_x<=0-1;
   else if(pos_ball_x>320&&pos_left_x<120)velocity_left_x<=1;
-  else if(pos_ball_x>320&&pos_left_x>120)velocity_left_x<=0-1;
-  else velocity_left_x<=0;
+   else if(pos_ball_x>320&&pos_left_x>120)velocity_left_x<=0-1;
+   else velocity_left_x<=0;
+   end
+   else begin
+  if(pos_ball_x>pos_left_x&&pos_ball_x<320)velocity_left_x<=1;
+  else if(pos_ball_x<pos_left_x&&pos_ball_x<320)velocity_left_x<=0-1;
+  else if(pos_ball_x>320&&pos_left_x<120)velocity_left_x<=1;
+   else if(pos_ball_x>320&&pos_left_x>120)velocity_left_x<=0-1;
+   else velocity_left_x<=0;
+   
+   if(pos_ball_y>pos_left_y)velocity_left_y<=0-1;
+   else velocity_left_y<=1;
+   end
   
-  
- // else if(velocity_ball_x==0)velocity_left_x<=0;
   end
+  
+
+
 end
 
 
@@ -452,7 +542,7 @@ initial begin
   velocity_left_x <=0;
   velocity_left_y <=0;
   velocity_ball_x <=0;
-  velocity_ball_y <=0;
+  velocity_ball_y <=usr_sw[0]?(-3):0;
 
   pixel_ball_rec[0] <= 0;
   pixel_ball_rec[1] <= 3026;
@@ -493,8 +583,21 @@ always@(posedge clk)begin
     if(pos_ball_x>613)pos_ball_x<=613;
     else if(pos_ball_x<27)pos_ball_x<=27;
   end else if(P==S_MAIN_FIX_POSITION_Y&&mode==5)begin
+   if(!usr_sw[0])begin
     if(pos_ball_y>413)begin pos_ball_y<=413;  end
     else if(pos_ball_y<27)begin pos_ball_y<=27;  end
+    end
+    else begin
+    if(pos_ball_y>413)begin pos_ball_y<=413;  end
+    else if(pos_ball_y<27)begin pos_ball_y<=27;  end
+    
+    if(pos_right_y>395)begin pos_right_y<=395;  end
+    else if(pos_right_y<39)begin pos_right_y<=39;  end
+    
+    if(pos_left_y>395)begin pos_left_y<=395;  end
+    else if(pos_left_y<39)begin pos_left_y<=39;  end
+    
+    end
   end else if(P==S_MAIN_CALCULATE)begin
     right_diff_x  <=pos_ball_x  - pos_right_x;
     right_diff_y  <=pos_ball_y  - pos_right_y;
@@ -549,8 +652,24 @@ always @ (posedge clk) begin
   else if((P==S_MAIN_IDLE||P==S_MAIN_DELAY))
     // Scale up a 320x240 image for the 640x480 display.
     // (pixel_x, pixel_y) ranges from (0,0) to (639, 479)
-    pixel_addr <= (pixel_y >> 1) * VBUF_W + (pixel_x >> 1);
+    if(usr_sw[0])begin
+        pixel_addr <= (pixel_y >> 2) * VBUF_W1 + (pixel_x >>2)+76800;
+    end else begin
+        pixel_addr <= (pixel_y >> 1) * VBUF_W + (pixel_x >> 1);
+    end
+    
 end
+
+/* 
+always @ (posedge clk) begin
+  if (~reset_n)
+    pixel_addr2 <= 0;
+  else if((P==S_MAIN_IDLE||P==S_MAIN_DELAY))
+    // Scale up a 320x240 image for the 640x480 display.
+    // (pixel_x, pixel_y) ranges from (0,0) to (639, 479)
+    pixel_addr2 <= (pixel_y >> 1) * VBUF_W + (pixel_x >> 1);
+end
+*/
 
 always @ (posedge clk) begin
   if (fish_region&&(P==S_MAIN_IDLE||P==S_MAIN_DELAY))
@@ -573,6 +692,7 @@ always @ (posedge clk) begin
   else if(P==S_MAIN_IDLE||P==S_MAIN_DELAY)
     pixel_addr_ball <=0;
 end
+
 
 always @ (posedge clk) begin
   if (score_region&&(P==S_MAIN_IDLE||P==S_MAIN_DELAY))
@@ -629,7 +749,10 @@ always @(*) begin
   else if(ball_region&&data_out_ball!=12'h0F0&&(P==S_MAIN_IDLE||P==S_MAIN_DELAY))rgb_next<=data_out_ball; 
   else if(score_region&&data_out_score!=12'h0F0)rgb_next<=data_out_score;  
   else if(score_region2&&data_out_score2!=12'h0F0)rgb_next<=data_out_score2; 
-  else if(P==S_MAIN_IDLE||P==S_MAIN_DELAY)rgb_next <= data_out;
+  else if(P==S_MAIN_IDLE||P==S_MAIN_DELAY) begin 
+
+        rgb_next <= data_out;
+  end
 end
 // End of the video data display code.
 // ------------------------------------------------------------------------
