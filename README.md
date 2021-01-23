@@ -1,13 +1,13 @@
 # pikachu-volleyball
 
-This is final project of NCTU DLAB course used by Verilog.
+This is final project of NCTU DLAB course using Verilog.
 
 all files in **lab10.zip**
 
 ## Tool
 
-used by verilog & Vivado
+using verilog & Vivado
 
-## Demo Vedio
+## Demo video
 
-[![Demo Vedio](http://img.youtube.com/vi/uYjICYDUH-k/0.jpg)](http://www.youtube.com/watch?v=uYjICYDUH-k "Demo Vedio")
+[![Demo video](http://img.youtube.com/vi/uYjICYDUH-k/0.jpg)](http://www.youtube.com/watch?v=uYjICYDUH-k "Demo video")
